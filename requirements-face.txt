@@ -1,0 +1,2 @@
+# Optional dependency for --camera / --video
+opencv-python>=4.8,<5.0

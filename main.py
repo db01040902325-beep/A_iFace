@@ -29,17 +29,25 @@ def demo(output: Path):
     print('CAUTION: No motor controls, no head-distance measurement.')
 
 
+
 def main():
-    p=argparse.ArgumentParser(description='3R planar arm simulation / optional webcam preview')
-    p.add_argument('--demo',action='store_true')
-    p.add_argument('--camera',action='store_true')
+    p=argparse.ArgumentParser(description='3R arm simulation or pretrained YuNet face detection')
+    mode=p.add_mutually_exclusive_group()
+    mode.add_argument('--demo',action='store_true',help='3R simulated arm and CSV')
+    mode.add_argument('--camera',action='store_true',help='webcam YuNet face preview')
+    mode.add_argument('--video',type=Path,help='face preview from existing video file')
+    mode.add_argument('--download-model',action='store_true',help='download SHA-256-checked pretrained YuNet')
     p.add_argument('--device',type=int,default=0)
+    p.add_argument('--face-log',type=Path,help='opt-in CSV tracking logs, no images')
     p.add_argument('--out',type=Path,default=Path('results/demo.csv'))
     a=p.parse_args()
-    if a.camera:
+    if a.download_model:
+        from aiface.vision import install_model
+        print('Verified YuNet model:',install_model())
+    elif a.camera or a.video is not None:
         from aiface.vision import preview_camera
-        preview_camera(a.device)
-    if a.demo or not a.camera:
+        preview_camera(a.device,video=a.video,log_path=a.face_log)
+    else:
         demo(a.out)
 
 

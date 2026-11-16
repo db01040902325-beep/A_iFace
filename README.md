@@ -45,3 +45,28 @@ q 키로 종료. 이 얼굴 검출기는 신원, 실제 얼굴 거리, 3D 머리
 v0.2: 카메라+거리센서 융합 및 좌표 보정 → v0.3: 안전한 실제 관절 구동 → v0.4: AI 얼굴 추적 통합 → v1.0: 노트북 없는 SBC+ESP32 실행.
 
 학교 시제품으로, 사용자 신원 식별이나 의료기기용이 아닙니다.
+
+
+## v0.2: 공개 사전학습 모델을 활용한 얼굴 검출
+
+OpenCV Zoo YuNet(WIDER FACE 사전학습)을 이용하며, 별도 수동 라벨링 없이 얼굴 중심(X/Y)과 눈 기울기(2D roll)를 표시합니다.
+
+실행:
+
+    python -m pip install -r requirements-face.txt
+    python main.py --download-model
+    python main.py --camera --device 0
+
+모의 로봇암: python main.py --demo
+자동 테스트: python -m unittest discover -s tests -v
+
+녹화된 영상 입력: python main.py --video sample.mp4
+선택적 CSV 기록: python main.py --camera --face-log results/face_tracking.csv
+
+얼굴이 없거나 2명 이상이면 추적 결과를 차단합니다. q 키로 종료합니다.
+
+**현재 실제 거리(cm), 3D 머리 방향, 실제 모터 추종은 구현하지 않았습니다.**
+모델은 명시적으로 다운로드할 때만 설치하고 SHA-256을 확인합니다.
+원본 얼굴 영상은 저장하거나 외부로 전송하지 않습니다.
+
+자세한 내용: docs/FACE_DETECTION.md
