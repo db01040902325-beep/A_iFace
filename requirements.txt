@@ -1,0 +1,2 @@
+# Core simulation uses only the Python standard library.
+# Optional camera preview: python -m pip install opencv-python

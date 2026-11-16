@@ -1,49 +1,46 @@
-"""실행: python main.py --plot"""
+"""A_iFace v0.1: simulated 3R arm only. Run: python main.py --demo"""
 import argparse
 import csv
+import math
 from pathlib import Path
-from bedcontrol.simulation import simulate, summary
+from aiface.core import ArmConfig, MockMotion, forward, inverse, required_torque
+
+
+def demo(output: Path):
+    cfg=ArmConfig()
+    motion=MockMotion(cfg)
+    target=(0.24,0.12,math.radians(10))
+    q_target=inverse(*target,cfg,current=tuple(motion.q))
+    output.parent.mkdir(parents=True,exist_ok=True)
+    rows=[]
+    for i in range(500):
+        q=motion.step(q_target,0.02)
+        x,z,phi=forward(q,cfg)
+        tau=required_torque(q,tuple(motion.dq), (0.,0.,0.),cfg)
+        rows.append([round((i+1)*.02,3),x,z,math.degrees(phi),*(math.degrees(v) for v in q),*tau])
+    with output.open('w',newline='',encoding='utf-8-sig') as f:
+        writer=csv.writer(f)
+        writer.writerow(['t_s','x_m','z_m','phone_pitch_deg','q1_deg','q2_deg','q3_deg','tau1_Nm','tau2_Nm','tau3_Nm'])
+        writer.writerows(rows)
+    pose=forward(motion.q,cfg)
+    print('Simulated pose:',tuple(round(v,4) for v in pose))
+    print('Target pose:',tuple(round(v,4) for v in target))
+    print('CSV:',output)
+    print('CAUTION: No motor controls, no head-distance measurement.')
 
 
 def main():
-    parser = argparse.ArgumentParser(description='구급차 침대 2자유도 실험용 시뮬레이터')
-    parser.add_argument('--out', default='results', help='CSV/PNG 저장 폴더')
-    parser.add_argument('--plot', action='store_true', help='matplotlib 설치 시 그래프 출력 파일 생성')
-    args = parser.parse_args()
-    output = Path(args.out)
-    output.mkdir(parents=True, exist_ok=True)
-    modes = ('passive', 'feedback', 'preview')
-    datasets = {mode: simulate(mode) for mode in modes}
-    for mode, rows in datasets.items():
-        with (output / f'{mode}.csv').open('w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-            writer.writeheader()
-            writer.writerows(rows)
-        score = summary(rows)
-        print(f'{mode:8s} | heave RMS={score["heave_rms_mm"]:.3f}mm | pitch RMS={score["pitch_rms_deg"]:.3f}°')
-    if args.plot:
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError:
-            print('matplotlib 없음: 그래프는 생략합니다. 설치: pip install matplotlib')
-        else:
-            # 각각 개별 차트로 출력
-            for key, name, ylabel in (('bed_z_mm', 'heave', 'Heave displacement (mm)'),
-                                       ('bed_pitch_deg', 'pitch', 'Pitch angle (deg)')):
-                fig, ax = plt.subplots(figsize=(10, 4))
-                for mode in modes:
-                    rows = datasets[mode]
-                    ax.plot([r['time_s'] for r in rows], [r[key] for r in rows], label=mode)
-                ax.set_xlabel('Time (s)')
-                ax.set_ylabel(ylabel)
-                ax.legend()
-                ax.grid(True, alpha=0.3)
-                fig.tight_layout()
-                fig.savefig(output / f'{name}.png', dpi=150)
-                plt.close(fig)
-            print(f'그래프 저장: {output.resolve()}')
-    print('주의: preview는 이상적 미래 노면 데이터로, 실제 학습된 AI가 아닙니다.')
+    p=argparse.ArgumentParser(description='3R planar arm simulation / optional webcam preview')
+    p.add_argument('--demo',action='store_true')
+    p.add_argument('--camera',action='store_true')
+    p.add_argument('--device',type=int,default=0)
+    p.add_argument('--out',type=Path,default=Path('results/demo.csv'))
+    a=p.parse_args()
+    if a.camera:
+        from aiface.vision import preview_camera
+        preview_camera(a.device)
+    if a.demo or not a.camera:
+        demo(a.out)
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == '__main__': main()
