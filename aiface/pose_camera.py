@@ -4,6 +4,7 @@ No motor interface. Camera is assumed to be FIXED to robot base (not phone).
 Single-webcam distance is an approximate personally calibrated estimate only.
 """
 import csv
+import hashlib
 from collections import deque
 from dataclasses import asdict
 import json
@@ -12,8 +13,6 @@ from pathlib import Path
 from statistics import median
 import time
 from urllib.request import Request, urlopen
-import zipfile
-from io import BytesIO
 
 from .core import ArmConfig, MockMotion
 from .head_pose import FixedCameraRig, MonoCalibration, SimulatedFollower, observation_from_landmarks
@@ -24,20 +23,22 @@ MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/fac
 
 
 def download_model(path=MODEL_PATH):
-    """Explicit download from Google's versioned HTTPS endpoint; max 24 MB."""
+    """Download a versioned official MediaPipe bundle; pin its SHA-256.
+
+    This task asset is not assumed to be a ZIP archive.
+    """
     p = Path(path)
-    if p.exists():
-        with zipfile.ZipFile(p) as z:
-            if z.testzip() is not None:
-                raise ValueError('Invalid model bundle')
+    expected = '64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff'
+    if p.is_file():
+        if hashlib.sha256(p.read_bytes()).hexdigest() != expected:
+            raise ValueError('Locally stored model has invalid SHA-256')
         return p
     with urlopen(Request(MODEL_URL, headers={'User-Agent':'A_iFace/0.3'}), timeout=40) as r:
         data = r.read(24*1024*1024+1)
-    if len(data) > 24*1024*1024 or data[:2] != b'PK':
-        raise ValueError('Model download invalid or too large')
-    with zipfile.ZipFile(BytesIO(data)) as z:
-        if z.testzip() is not None:
-            raise ValueError('Model ZIP integrity failure')
+    if len(data) < 100_000 or len(data) > 24*1024*1024:
+        raise ValueError('Model download invalid size')
+    if hashlib.sha256(data).hexdigest() != expected:
+        raise ValueError('Official model hash mismatch; refusing to save')
     p.parent.mkdir(parents=True,exist_ok=True)
     tmp = p.with_suffix('.download')
     try:
@@ -46,7 +47,6 @@ def download_model(path=MODEL_PATH):
     finally:
         tmp.unlink(missing_ok=True)
     return p
-
 
 def _read_calibration(path):
     p=Path(path)

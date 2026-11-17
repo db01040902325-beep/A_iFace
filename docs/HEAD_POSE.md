@@ -7,7 +7,7 @@
 - 478개 얼굴 특징점 및 canonical-to-observed 4x4 얼굴 변환행렬
 - 기존 OpenCV YuNet v0.2는 유지하며 MediaPipe는 별도 선택 실행
 - 재학습/수동 라벨링 없이 사용
-- 모델 다운로드는 명시적으로만 실행; 버전 URL 및 ZIP 무결성을 확인 (SHA-256 고정 미실시)
+- 모델 다운로드는 명시적으로만 실행; 버전 URL과 SHA-256(64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff)을 검증
 
 ## 실행
 
