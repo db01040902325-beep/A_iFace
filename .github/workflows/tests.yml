@@ -1,4 +1,4 @@
-name: Robot arm and face detector tests
+name: A_iFace - kinematics and face models
 on:
   push:
   pull_request:
@@ -12,6 +12,7 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -v
       - run: python main.py --demo
+      - run: python main.py --follow-demo
   face-detector-smoke:
     runs-on: ubuntu-latest
     steps:
@@ -22,3 +23,13 @@ jobs:
       - run: python -m pip install "opencv-python-headless>=4.8,<5.0"
       - run: python main.py --download-model
       - run: python tools/check_face_model.py
+  head-pose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r requirements-pose.txt
+      - run: python main.py --download-pose-model
+      - run: python tools/check_pose_model.py

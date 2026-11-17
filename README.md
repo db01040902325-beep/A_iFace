@@ -70,3 +70,46 @@ OpenCV Zoo YuNet(WIDER FACE 사전학습)을 이용하며, 별도 수동 라벨�
 원본 얼굴 영상은 저장하거나 외부로 전송하지 않습니다.
 
 자세한 내용: docs/FACE_DETECTION.md
+
+
+## v0.3: 3D 머리 방향 추정 + 보정된 거리 + 가상 로봇암 추적
+
+공개 사전학습 **MediaPipe Face Landmarker**(478개 얼굴 특징점·4x4 얼굴 변환행렬)를 이용합니다. 카메라에서 얼굴 방향 Pitch/Yaw/Roll을 추정하고, **사용자가 실측한 기준 거리**에서 눈 사이 픽셀 간격을 저장하여 상대적인 거리를 근사합니다. **측정 장비 없이 절대 거리를 정확히 알아내는 기능이 아닙니다.**
+
+설치:
+
+    python -m pip install -r requirements-pose.txt
+    python main.py --download-pose-model
+
+먼저 카메라·모터 없이 3자유도 얼굴 추종 시뮬레이션:
+
+    python main.py --follow-demo
+
+실제 웹캠으로 얼굴 방향 및 가상 로봇암 확인:
+
+    python main.py --pose-camera --device 0 --reference-distance-cm 65
+
+1. 카메라에서 얼굴까지 실제 거리를 줄자로 **65cm** 측정한 다음 해당 위치에 서십시오.
+2. 정면을 바라본 상태에서 잠시 기다린 뒤 C 키를 눌러 기준 눈 사이 픽셀 값을 저장하십시오.
+3. 얼굴 위치·방향·추정 거리와 우측의 **가상 3자유도 로봇암**을 관찰하십시오.
+4. 종료는 Q 키입니다.
+
+영상 파일로 실행:
+
+    python main.py --pose-video sample.mp4 --reference-distance-cm 65
+
+수치 CSV 기록 옵션:
+
+    --pose-log results/pose.csv
+
+거리 보정 파일 calibration/face.json은 로컬에만 저장하고 Git에는 올리지 않습니다.
+
+**안전 및 기계적 제약**
+- 로봇 추적 시뮬레이션은 카메라가 로봇암 어깨 관절 옆에 **고정**되고 +X를 바라본다고 가정합니다. 스마트폰 거치대에 카메라를 부착할 경우 이 기하학은 틀리므로 실제 구동에 사용하면 안 됩니다.
+- 3개 관절은 2D 수직 평면만 움직입니다. 머리가 좌우로 이동하거나 큰 Yaw/Roll이 생기면 추적을 중단합니다.
+- 카메라 수평 화각 기본 60°는 **임시 가정**입니다. 실제 카메라 내부·외부 보정 없이 실제 위치 정확도를 보장하지 않습니다.
+- 추정 거리 불확실, 3자유도 역기구학 불가능 시 HOLD 상태로 가상 정지합니다.
+- 실제 모터 제어 없음. 사람 대신 더미로 물리적 비상정지·낙하 방지·충돌 방지 시험을 마친 뒤 실물 이동 제어를 검토하십시오.
+
+모델 출처: https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker
+개발 상세: docs/HEAD_POSE.md

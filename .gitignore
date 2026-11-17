@@ -5,6 +5,7 @@ results/
 logs/
 recordings/
 models/
+calibration/
 .pio/
 .env
 .env.*
