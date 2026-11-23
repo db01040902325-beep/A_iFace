@@ -77,7 +77,9 @@ class Face6PlanTests(unittest.TestCase):
                          'HOLD_UNRELIABLE_DEPTH')
         self.assertEqual(self.f.plan(sample(cx=float('nan'))).status,
                          'HOLD_INVALID_OBSERVATION')
-        self.assertEqual(self.f.plan(sample(cx=.99)).status,
+        # A far target is inside the monocular depth range but outside the
+        # 0.32m maximum arm reach, so it must be rejected by 6R IK.
+        self.assertEqual(self.f.plan(sample(distance=1.30)).status,
                          'HOLD_IK_UNREACHABLE')
 
     def test_never_trust_uncalibrated_rig(self):

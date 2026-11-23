@@ -14,6 +14,7 @@ jobs:
       - run: python -m aiface.arm6
       - run: python -m aiface.ik6
       - run: python -m aiface.motion6
+      - run: python -c "from aiface.pose_camera6 import preview_pose6; print('6R webcam preview import PASS')"
       - run: python -m aiface.follow6
       - run: python tools/check_motion6_limits.py results/motion6_demo.csv
       - run: python main.py --demo
