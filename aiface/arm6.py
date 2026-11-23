@@ -14,6 +14,8 @@ from math import cos, degrees, isfinite, pi, radians, sin
 class Arm6Config:
     lengths_m: tuple[float, float, float] = (0.15, 0.13, 0.04)
     base_height_m: float = 0.12
+    max_speed_deg_s: float = 20.0  # provisional, all six joints
+    max_accel_deg_s2: float = 80.0  # provisional, all six joints
     # Provisional SOFTWARE limits: replace with actual mechanical stops.
     limits_deg: tuple[tuple[float, float], ...] = (
         (-170., 170.), (-85., 85.), (-145., 145.),
@@ -27,6 +29,9 @@ class Arm6Config:
             raise ValueError("Exactly three positive finite link lengths required")
         if not isfinite(self.base_height_m) or self.base_height_m < 0:
             raise ValueError("Invalid base height")
+        if not (isfinite(self.max_speed_deg_s) and self.max_speed_deg_s > 0
+                and isfinite(self.max_accel_deg_s2) and self.max_accel_deg_s2 > 0):
+            raise ValueError('Invalid six-axis motion limits')
         if len(self.limits_deg) != 6 or any(
             len(pair) != 2 or not all(isfinite(v) for v in pair) or pair[0] >= pair[1]
             for pair in self.limits_deg
