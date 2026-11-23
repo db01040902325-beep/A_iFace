@@ -113,3 +113,19 @@ OpenCV Zoo YuNet(WIDER FACE 사전학습)을 이용하며, 별도 수동 라벨�
 
 모델 출처: https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker
 개발 상세: docs/HEAD_POSE.md
+
+
+## 6R 확장 기구학 (추가 프로토타입)
+
+기존 3R의 테스트와 데모를 보존한 채 별도의 6축 정기구학(FK)을 구현했습니다.
+축은 1번 Z(베이스 좌우), 2~4번 Y(어깨·팔꿈치·손목 상하),
+5번 X(손목 롤), 6번 Z(도구 좌표계 말단 방향)입니다.
+
+\`\`\`bash
+python -m aiface.arm6
+python -m unittest discover -s tests -v
+\`\`\`
+
+현재 **6R 정기구학만 구현**되어 있습니다. 6R 역기구학·모터 구동·실시간 얼굴 추종·물리적 안전성은 아직 미구현입니다.
+기존 \`main.py --pose-camera\`는 3R 가상 로봇암을 계속 사용합니다.
+기하학 가정과 단계별 계획: \`docs/ARM6_DESIGN.md\`.

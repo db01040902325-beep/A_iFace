@@ -11,6 +11,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -v
+      - run: python -m aiface.arm6
       - run: python main.py --demo
       - run: python tools/check_motion_limits.py results/demo.csv
       - run: python main.py --follow-demo
