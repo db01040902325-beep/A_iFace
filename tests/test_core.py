@@ -76,4 +76,56 @@ class SafeMotion(unittest.TestCase):
     def test_invalid_config(self):
         with self.assertRaises(ValueError): ArmConfig(lengths=(0,0.1,0.1))
 
+
+
+class MotionAccelerationRegression(unittest.TestCase):
+    """Tests the *position samples*, as done by an actual CSV post-processor."""
+    def _check_samples(self, targets, dt):
+        cfg=ArmConfig()
+        motion=MockMotion(cfg)
+        previous_q=(0.,0.,0.)
+        previous_v=(0.,0.,0.)
+        for target in targets:
+            q=motion.step(target,dt)
+            velocity=tuple((q[j]-previous_q[j])/dt for j in range(3))
+            self.assertTrue(cfg.within_limits(q))
+            for j in range(3):
+                self.assertLessEqual(abs(velocity[j]),math.radians(20)+1e-8)
+                self.assertLessEqual(abs((velocity[j]-previous_v[j])/dt),
+                                     math.radians(80)+1e-7)
+            previous_q,previous_v=q,velocity
+        return motion
+
+    def test_original_demo_no_instant_stop(self):
+        goal=inverse(.24,.12,math.radians(10))
+        motion=self._check_samples([goal]*500,dt=.02)
+        for q,t in zip(motion.q,goal):
+            self.assertAlmostEqual(q,t,delta=1e-5)
+        for v in motion.dq:
+            self.assertAlmostEqual(v,0,delta=1e-6)
+
+    def test_varying_control_period(self):
+        for dt in (.01,.02,.05,.1):
+            with self.subTest(dt=dt):
+                goal=(math.radians(40),math.radians(-70),math.radians(55))
+                motion=self._check_samples([goal]*int(12/dt),dt=dt)
+                self.assertLess(max(abs(a-b) for a,b in zip(motion.q,goal)),1e-5)
+
+    def test_at_joint_limits(self):
+        cfg=ArmConfig()
+        goal=tuple(math.radians(hi) for lo,hi in cfg.limits_deg)
+        self._check_samples([goal]*950,dt=.02)
+
+    def test_mid_motion_retarget(self):
+        pos=(math.radians(70),math.radians(-55),math.radians(45))
+        neg=(math.radians(-50),math.radians(40),math.radians(-35))
+        seq=[pos]*100+[neg]*200+[(0.,0.,0.)]*500
+        motion=self._check_samples(seq,dt=.02)
+        self.assertLess(max(map(abs,motion.q)),1e-5)
+
+    def test_tiny_target_no_teleport(self):
+        goal=(math.radians(.001),math.radians(-.002),math.radians(.001))
+        motion=self._check_samples([goal]*100,dt=.02)
+        self.assertLess(max(abs(a-b) for a,b in zip(motion.q,goal)),1e-7)
+
 if __name__=='__main__': unittest.main()

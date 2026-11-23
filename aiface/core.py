@@ -4,7 +4,7 @@ Coordinates: x forward from shoulder; z upward; all joint angles in radians.
 Only a simulated arm. Never use these functions directly as a human-facing motor driver.
 """
 from dataclasses import dataclass
-from math import atan2, cos, sin, acos, pi, isfinite
+from math import atan2, cos, sin, acos, pi, isfinite, ceil
 
 
 def _finite(*xs):
@@ -141,25 +141,76 @@ class MockMotion:
         # Does not implement any physical emergency stop reset.
         self.halted=False
 
+    @staticmethod
+    def _braking_distance(speed, speed_step, dt):
+        """Distance travelled from this speed to rest, with max discrete braking.
+
+        Integrates positions with the same post-update velocity rule as step().
+        There is no instantaneous position snap or velocity reset.
+        """
+        if speed <= 0.:
+            return 0.
+        n = max(0, ceil(speed / speed_step) - 1)
+        return dt * max(0., n * speed - speed_step * n * (n + 1) / 2.)
+
     def step(self, target, dt):
-        if self.halted: return tuple(self.q)
-        _finite(dt,*target)
-        if not 0<dt<=0.1: raise ValueError('Invalid control period')
-        if not self.cfg.within_limits(target): raise ValueError('Joint limit exceeded')
-        vmax=self.cfg.max_speed_deg_s*pi/180
-        amax=self.cfg.max_accel_deg_s2*pi/180
+        """Advance mock joints with hard velocity and *discrete* acceleration caps.
+
+        For a stationary target, use a stopping-distance feasibility check to
+        avoid overshooting the target or teleporting the joint at arrival.
+        Sudden changes of target may require a normal deceleration/reversal.
+        Emergency stop remains a *software-only*, idealized halt.
+        """
+        if self.halted:
+            return tuple(self.q)
+        _finite(dt, *target)
+        if not 0 < dt <= .1:
+            raise ValueError('Invalid control period')
+        if not self.cfg.within_limits(target):
+            raise ValueError('Joint limit exceeded')
+
+        vmax = self.cfg.max_speed_deg_s * pi / 180.
+        dvmax = self.cfg.max_accel_deg_s2 * pi / 180. * dt
+
         for j in range(3):
-            error=target[j]-self.q[j]
-            # Speed bound plus braking-distance-aware approach to target.
-            desired=clamp(error/dt,-vmax,vmax)
-            desired=clamp(desired,-(2*amax*abs(error))**0.5,(2*amax*abs(error))**0.5)
-            dv=clamp(desired-self.dq[j],-amax*dt,amax*dt)
-            new_v=self.dq[j]+dv
-            delta=new_v*dt
-            if error and (delta*error>=error*error):
-                self.q[j]=target[j]; self.dq[j]=0.
+            error = target[j] - self.q[j]
+            velocity = self.dq[j]
+            if error == 0. and velocity == 0.:
+                continue
+
+            # Express all quantities in the direction of the current target.
+            direction = 1. if error > 0. else -1. if error < 0. else (-1. if velocity > 0. else 1.)
+            toward_velocity = direction * velocity
+
+            low = max(-vmax, toward_velocity - dvmax)
+            high = min(vmax, toward_velocity + dvmax)
+            if high <= 0.:
+                next_toward = high  # Still moving away; decelerate or reverse.
             else:
-                self.q[j]+=delta; self.dq[j]=new_v
+                # Largest next velocity which still allows braking to rest
+                # without crossing this stationary target. Binary search
+                # resolves exact discrete-time braking (unlike sqrt(2*a*d)).
+                lo_safe, hi_safe = 0., high
+                distance = abs(error)
+                for _ in range(36):
+                    candidate = (lo_safe + hi_safe) / 2.
+                    stopping = candidate * dt + self._braking_distance(
+                        candidate, dvmax, dt
+                    )
+                    if stopping <= distance:
+                        lo_safe = candidate
+                    else:
+                        hi_safe = candidate
+
+                # A moving, newly retargeted joint may already be unable to
+                # brake within the new distance. Never exceed dvmax to hide it.
+                next_toward = clamp(lo_safe, low, high)
+
+            next_velocity = direction * next_toward
+            self.q[j] += next_velocity * dt
+            self.dq[j] = next_velocity
+
         if not self.cfg.within_limits(self.q):
-            self.emergency_stop(); raise ValueError('Internal joint limit fault')
+            self.emergency_stop()
+            raise ValueError('Internal joint limit fault')
         return tuple(self.q)
