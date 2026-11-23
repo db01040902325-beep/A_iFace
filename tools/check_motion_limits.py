@@ -8,6 +8,8 @@ import math
 import sys
 from pathlib import Path
 
+# Direct invocation: python tools/check_motion_limits.py from the repository root.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aiface.core import ArmConfig
 
 
