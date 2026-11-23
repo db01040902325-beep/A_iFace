@@ -41,10 +41,13 @@ def main():
     mode.add_argument('--download-model',action='store_true',help='YuNet ONNX download')
     mode.add_argument('--download-pose-model',action='store_true',help='MediaPipe Face Landmarker bundle')
     mode.add_argument('--pose-camera',action='store_true',help='MediaPipe 3D pose + simulated 3R follow')
+    mode.add_argument('--pose-camera6',action='store_true',help='MediaPipe face pose + 6R virtual following (MOTORS OFF)')
+    mode.add_argument('--pose-video6',type=Path,help='Video input + 6R virtual following')
     mode.add_argument('--pose-video',type=Path,help='MediaPipe 3D pose + simulated follow from video')
     p.add_argument('--device',type=int,default=0)
     p.add_argument('--face-log',type=Path,help='YuNet numeric CSV, no video saved')
-    p.add_argument('--pose-log',type=Path,help='MediaPipe pose and simulation numeric CSV')
+    p.add_argument('--pose-log',type=Path,help='MediaPipe pose and 3R simulation CSV')
+    p.add_argument('--pose-log6',type=Path,help='6R virtual pose and tracking CSV')
     p.add_argument('--out',type=Path,default=Path('results/demo.csv'))
     p.add_argument('--calibration',type=Path,default=Path('calibration/face.json'))
     p.add_argument('--reference-distance-cm',type=float,default=None,
@@ -62,6 +65,14 @@ def main():
     elif a.download_pose_model:
         from aiface.pose_camera import download_model
         print('MediaPipe model:',download_model())
+    elif a.pose_camera6 or a.pose_video6 is not None:
+        from aiface.pose_camera6 import preview_pose6
+        preview_pose6(a.device,video=a.pose_video6,
+                      reference_distance_cm=a.reference_distance_cm,
+                      calibration_path=a.calibration,
+                      desired_distance_cm=a.desired_distance_cm,
+                      horizontal_fov_deg=a.horizontal_fov_deg,
+                      log_path=a.pose_log6)
     elif a.pose_camera or a.pose_video is not None:
         from aiface.pose_camera import preview_pose
         preview_pose(a.device,video=a.pose_video,reference_distance_cm=a.reference_distance_cm,
